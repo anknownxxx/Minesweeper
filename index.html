@@ -104,7 +104,7 @@ button.tile { align-items: flex-start; text-align: left; }
 }
 #padMain { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #padMain.flip { flex-direction: row-reverse; }
-#padTop { display: flex; justify-content: center; gap: 24px; }
+#padTop { display: flex; justify-content: center; }
 #dpad { flex: none; display: grid; grid-template: repeat(3, var(--k)) / repeat(3, var(--k)); }
 .dir { border: 0; background: #26262b; padding: 0; display: flex; align-items: center; justify-content: center; touch-action: none; }
 .dir svg { width: 46%; height: 46%; fill: var(--accent); }
@@ -120,8 +120,10 @@ button.tile { align-items: flex-start; text-align: left; }
 #dpadHub { grid-area: 2 / 2; background: #26262b; }
 #dpadHub::after { content: ''; display: block; width: 28%; height: 28%; margin: 36%; border-radius: 50%; background: #1a1a1d; }
 
-.pill { width: 104px; height: 34px; border-radius: 17px; border: 1px solid var(--line); background: var(--panel-2); font-family: var(--font-ui); font-size: 13px; letter-spacing: .1em; color: var(--dim); padding: 0; }
-.pill:active { color: var(--accent); border-color: var(--accent); }
+.pill { position: relative; isolation: isolate; overflow: hidden; width: 76px; height: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-2); font-family: var(--font-ui); font-size: 12px; letter-spacing: .1em; color: var(--dim); padding: 0; touch-action: none; }
+.pill::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(255, 122, 0, .45); z-index: -1; }
+.pill.holding { color: var(--accent); border-color: var(--accent); }
+.pill.holding::before { width: 100%; transition: width .6s linear; }
 
 #ab { flex: none; display: grid; grid-template: repeat(2, var(--b)) / repeat(2, var(--b)); gap: 6px; }
 .round { border-radius: 50%; border: 3px solid var(--accent); font-family: var(--font-ui); font-size: clamp(17px, 5vw, 22px); letter-spacing: .04em; padding: 0; touch-action: none; transition: transform .05s; }
@@ -203,8 +205,7 @@ button.tile { align-items: flex-start; text-align: left; }
 
   <div id="pad">
     <div id="padTop">
-      <button class="pill" id="btnSelect">LEVEL</button>
-      <button class="pill" id="btnReset">RESET</button>
+      <button class="pill" id="btnReset" aria-label="リセット(長押し)">RESET</button>
     </div>
     <div id="padMain">
     <div id="dpad">
@@ -256,7 +257,8 @@ button.tile { align-items: flex-start; text-align: left; }
         <li><b>盤面をタップ</b>　カーソルがそのマスに移るだけ。掘らないので、押し間違えても安全。</li>
         <li><b>盤面をドラッグ</b>　表示する範囲を動かす。</li>
         <li><b>ズーム</b>　盤面の下の横線で1〜3。数字が大きいほど拡大する。カーソルの周囲は常に3マス(ズーム3は2マス)見える。</li>
-        <li><b>LEVEL / RESET</b>　レベル選択と、最初からやり直し。</li>
+        <li><b>LEVEL</b>　画面左上の枠を押すと、レベル選択。</li>
+        <li><b>RESET</b>　コントローラー上部のボタンを約0.6秒押し続けると、最初からやり直し。タップだけでは動かない。</li>
         <li><b>PC</b>　矢印キーかWASDで移動、SpaceかZで掘る、FかXで旗。</li>
       </ul>
     </div>
@@ -775,8 +777,21 @@ $('#levelList').addEventListener('click', e => {
   closeModals(); newGame(b.dataset.lv);
 });
 $('#btnLevel').addEventListener('click', openLevels);
-$('#btnSelect').addEventListener('click', openLevels);
-$('#btnReset').addEventListener('click', () => newGame(G.L.id));
+/* RESET: hold 0.6s to fire, so a stray thumb tap does nothing */
+(() => {
+  const b = $('#btnReset'); let id = null, timer = 0;
+  const stop = () => { clearTimeout(timer); timer = 0; id = null; b.classList.remove('holding'); };
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); if (id !== null) return;
+    id = e.pointerId; b.setPointerCapture(id);
+    b.classList.add('holding');
+    timer = setTimeout(() => { stop(); newGame(G.L.id); }, 600);
+  });
+  const up = e => { if (e.pointerId === id) stop(); };
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointercancel', up);
+  b.addEventListener('lostpointercapture', up);
+})();
 
 /* menu */
 function showTab(name) {
